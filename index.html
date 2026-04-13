@@ -1,0 +1,703 @@
+<!DOCTYPE html>
+<html lang="en" class="light">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+    <!-- favicon -->
+    <link rel="icon" type="image/png" href="https://img.icons8.com/fluency/512/toolbox.png">
+    <!-- favicon -->
+
+    <title>Unified-Toolkit</title>
+    <!-- Tailwind CSS for UI -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = { darkMode: 'class' }
+    </script>
+    <!-- FontAwesome for Icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    
+    <!-- SheetJS for Excel to CSV conversion -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+
+    <style>
+        body { transition: background-color 0.3s, color 0.3s; }
+        .drag-active { border-color: #3b82f6 !important; background-color: rgba(59, 130, 246, 0.1); }
+        .tab-btn.active { border-bottom-width: 4px; border-color: #3b82f6; color: #3b82f6; font-weight: bold; }
+        .tab-btn { transition: all 0.2s; border-bottom-width: 4px; border-color: transparent; }
+        
+        /* Chat Scrollbar */
+        .chat-scroll::-webkit-scrollbar { width: 6px; }
+        .chat-scroll::-webkit-scrollbar-track { background: transparent; }
+        .chat-scroll::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 10px; }
+        .dark .chat-scroll::-webkit-scrollbar-thumb { background: #475569; }
+    </style>
+</head>
+<body class="bg-gray-50 text-gray-800 dark:bg-gray-900 dark:text-gray-200 min-h-screen flex flex-col">
+
+    <!-- Top Navigation -->
+    <nav class="bg-white dark:bg-gray-800 shadow-sm border-b dark:border-gray-700 sticky top-0 z-50">
+        <div class="container mx-auto px-4">
+            <div class="flex flex-col sm:flex-row justify-between items-center py-4 gap-4">
+                <h1 class="text-2xl font-bold text-blue-600 dark:text-blue-400 flex items-center">
+                    <div class="w-10 h-10 bg-blue-100 dark:bg-blue-900 rounded-lg flex items-center justify-center mr-3 text-xl">
+                        <i class="fas fa-toolbox text-blue-600 dark:text-blue-400"></i>
+                    </div>
+                    Unified-Toolkit
+                </h1>
+
+                <!-- Mode Switcher -->
+                <div class="flex bg-gray-100 dark:bg-gray-700 p-1 rounded-xl shadow-inner">
+                    <button id="mode-manual-btn" onclick="Core.setMode('manual')" class="px-6 py-2 rounded-lg text-sm font-bold bg-white dark:bg-gray-800 text-blue-600 dark:text-blue-400 shadow transition-all">
+                        <i class="fas fa-hand-paper mr-2"></i> Manual
+                    </button>
+                    <button id="mode-ai-btn" onclick="Core.setMode('ai')" class="px-6 py-2 rounded-lg text-sm font-bold text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200 transition-all">
+                        <i class="fas fa-robot mr-2"></i> AI Agent
+                    </button>
+                </div>
+
+                <button id="darkModeToggle" class="p-2 rounded-full bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600 transition w-10 h-10 flex items-center justify-center">
+                    <i class="fas fa-moon text-lg" id="themeIcon"></i>
+                </button>
+            </div>
+            
+            <!-- Tabs Menu (Only visible in Manual Mode) -->
+            <div id="manual-tabs-nav" class="flex space-x-1 overflow-x-auto no-scrollbar pt-2">
+                <button onclick="Core.switchTab('image')" id="btn-tab-image" class="tab-btn active px-4 py-3 text-sm flex items-center whitespace-nowrap text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200">
+                    <i class="fas fa-image mr-2"></i> Image Tools
+                </button>
+                <button onclick="Core.switchTab('text')" id="btn-tab-text" class="tab-btn px-4 py-3 text-sm flex items-center whitespace-nowrap text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200">
+                    <i class="fas fa-file-code mr-2"></i> Text & JSON
+                </button>
+                <button onclick="Core.switchTab('data')" id="btn-tab-data" class="tab-btn px-4 py-3 text-sm flex items-center whitespace-nowrap text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200">
+                    <i class="fas fa-database mr-2"></i> Data & Utils
+                </button>
+                <button onclick="Core.switchTab('docs')" id="btn-tab-docs" class="tab-btn px-4 py-3 text-sm flex items-center whitespace-nowrap text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200">
+                    <i class="fas fa-file-pdf mr-2"></i> File Converters
+                </button>
+                <button onclick="Core.switchTab('history')" id="btn-tab-history" class="tab-btn px-4 py-3 text-sm flex items-center whitespace-nowrap text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200">
+                    <i class="fas fa-history mr-2"></i> History
+                </button>
+            </div>
+        </div>
+    </nav>
+
+    <main class="container mx-auto p-4 flex-1 mt-4 relative">
+
+        <!-- ========================================== -->
+        <!-- AI AGENT MODE INTERFACE                    -->
+        <!-- ========================================== -->
+        <section id="tab-ai" class="mode-content hidden w-full max-w-4xl mx-auto h-[75vh] flex flex-col bg-white dark:bg-gray-800 rounded-2xl shadow-lg border border-gray-100 dark:border-gray-700 overflow-hidden">
+            <!-- Chat Header -->
+            <div class="bg-gradient-to-r from-blue-600 to-indigo-600 p-4 text-white flex items-center gap-3">
+                <div class="w-10 h-10 bg-white/20 rounded-full flex items-center justify-center">
+                    <i class="fas fa-robot text-xl"></i>
+                </div>
+                <div>
+                    <h2 class="font-bold">Gemini Agent</h2>
+                    <p class="text-xs text-blue-100">I can automatically run any tool in this kit for you.</p>
+                </div>
+            </div>
+
+            <!-- Chat Messages -->
+            <div id="chat-window" class="flex-1 p-6 overflow-y-auto chat-scroll flex flex-col gap-4 bg-gray-50/50 dark:bg-gray-800/50">
+                <!-- Welcome Message -->
+                <div class="flex gap-3">
+                    <div class="w-8 h-8 rounded-full bg-blue-100 flex items-center justify-center shrink-0">
+                        <i class="fas fa-robot text-blue-600 text-sm"></i>
+                    </div>
+                    <div class="bg-white dark:bg-gray-700 p-4 rounded-2xl rounded-tl-none shadow-sm border border-gray-100 dark:border-gray-600 max-w-[85%] text-sm">
+                        <p class="mb-3">Hello! I am your AI assistant. I can automatically run any tool in this kit. Here is what I can do for you:</p>
+                        <div class="grid grid-cols-1 sm:grid-cols-2 gap-2 mb-3">
+                            <div class="bg-gray-50 dark:bg-gray-800 p-2 rounded border dark:border-gray-600 flex items-center gap-2"><i class="fas fa-image text-blue-500 w-4"></i><span class="text-xs"><b>Image:</b> Resize, Grayscale, Compress, Remove BG</span></div>
+                            <div class="bg-gray-50 dark:bg-gray-800 p-2 rounded border dark:border-gray-600 flex items-center gap-2"><i class="fas fa-font text-green-500 w-4"></i><span class="text-xs"><b>Text:</b> Uppercase, Lowercase, Clean Spaces</span></div>
+                            <div class="bg-gray-50 dark:bg-gray-800 p-2 rounded border dark:border-gray-600 flex items-center gap-2"><i class="fas fa-code text-yellow-500 w-4"></i><span class="text-xs"><b>JSON:</b> Beautify, Minify</span></div>
+                            <div class="bg-gray-50 dark:bg-gray-800 p-2 rounded border dark:border-gray-600 flex items-center gap-2"><i class="fas fa-file-pdf text-rose-500 w-4"></i><span class="text-xs"><b>Files:</b> DOCX/PPTX to PDF, Excel to CSV</span></div>
+                            <div class="bg-gray-50 dark:bg-gray-800 p-2 rounded border dark:border-gray-600 flex items-center gap-2 sm:col-span-2"><i class="fas fa-table text-indigo-500 w-4"></i><span class="text-xs"><b>Data:</b> CSV to Table, Generate Password</span></div>
+                        </div>
+                        <p class="font-semibold text-blue-600 dark:text-blue-400">Upload a file and tell me what to do, or paste some text to format it!</p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- File Attachment Preview Pill -->
+            <div id="ai-file-preview" class="hidden px-4 py-3 bg-gray-100 dark:bg-gray-700 border-t dark:border-gray-600 flex items-center justify-between">
+                <div class="flex items-center gap-3 text-sm font-medium text-gray-700 dark:text-gray-200 truncate">
+                    <img id="ai-file-thumbnail" src="" class="hidden w-10 h-10 object-cover rounded border border-gray-300 dark:border-gray-500 shadow-sm">
+                    <div id="ai-file-icon" class="w-10 h-10 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-500 rounded flex items-center justify-center shadow-sm">
+                        <i class="fas fa-file text-blue-500 text-lg"></i>
+                    </div>
+                    <span id="ai-filename" class="font-semibold">filename.png</span>
+                </div>
+                <button onclick="AiModule.clearFile()" class="text-gray-400 hover:text-red-500 transition-colors p-2 bg-white dark:bg-gray-800 rounded-full shadow-sm"><i class="fas fa-times"></i></button>
+            </div>
+
+            <!-- Chat Input Bar -->
+            <div class="p-4 bg-white dark:bg-gray-800 border-t dark:border-gray-700">
+                <div class="flex items-end gap-2 bg-gray-100 dark:bg-gray-900 rounded-xl p-2 border border-gray-200 dark:border-gray-700">
+                    <label for="ai-file-upload" class="p-3 text-gray-400 hover:text-blue-500 cursor-pointer transition">
+                        <i class="fas fa-paperclip text-xl"></i>
+                        <input type="file" id="ai-file-upload" class="hidden" onchange="AiModule.handleFileSelect(event)">
+                    </label>
+                    <textarea id="ai-input" rows="1" class="flex-1 bg-transparent border-none focus:ring-0 resize-none py-3 text-sm dark:text-white outline-none" placeholder="Type a command or just upload a file and hit Send..." onkeypress="if(event.key === 'Enter' && !event.shiftKey) { event.preventDefault(); AiModule.sendMessage(); }"></textarea>
+                    <button id="ai-send-btn" onclick="AiModule.sendMessage()" class="p-3 bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition shadow-sm">
+                        <i class="fas fa-paper-plane"></i>
+                    </button>
+                </div>
+            </div>
+        </section>
+
+
+        <!-- ========================================== -->
+        <!-- MANUAL MODE INTERFACE                      -->
+        <!-- ========================================== -->
+        <div id="manual-workspace" class="mode-content block">
+            
+            <!-- TAB 1: IMAGE UTILITIES -->
+            <section id="tab-image" class="tab-content w-full max-w-4xl mx-auto block animate-fade-in">
+                <!-- Keep identical to previous version -->
+                <div class="bg-white dark:bg-gray-800 p-8 rounded-2xl shadow-sm border border-gray-100 dark:border-gray-700">
+                    <h2 class="text-xl font-bold mb-6 flex items-center"><i class="fas fa-image text-blue-500 mr-3"></i> Studio Workspace</h2>
+                    
+                    <div id="dropZone" class="border-2 border-dashed border-gray-300 dark:border-gray-600 rounded-xl p-10 text-center cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-700 transition relative group">
+                        <input type="file" id="imageInput" accept="image/*" class="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-10">
+                        <div class="w-16 h-16 bg-blue-50 dark:bg-gray-600 rounded-full flex items-center justify-center mx-auto mb-4 group-hover:scale-110 transition-transform">
+                            <i class="fas fa-cloud-upload-alt text-2xl text-blue-500 dark:text-blue-300"></i>
+                        </div>
+                        <p class="font-medium text-lg text-gray-700 dark:text-gray-300">Drag & Drop or Click to Upload</p>
+                        <div id="fileInfo" class="mt-4 inline-block bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200 text-xs px-3 py-1 rounded-full hidden"></div>
+                    </div>
+
+                    <div id="imageWorkspace" class="hidden mt-8">
+                        <div class="bg-gray-50 dark:bg-gray-900 p-4 rounded-xl flex justify-center items-center mb-6 border dark:border-gray-700" style="min-h: 200px;">
+                            <canvas id="imageCanvas" class="max-w-full max-h-[400px] object-contain rounded shadow-sm"></canvas>
+                        </div>
+                        
+                        <div class="grid grid-cols-2 sm:grid-cols-4 gap-4">
+                            <button onclick="ImageModule.resize()" class="flex flex-col items-center justify-center bg-white dark:bg-gray-700 border border-gray-200 dark:border-gray-600 hover:border-blue-400 hover:bg-blue-50 dark:hover:bg-gray-600 p-4 rounded-xl transition">
+                                <i class="fas fa-compress-arrows-alt text-xl text-blue-500 mb-2"></i><span class="text-sm font-medium">Resize 50%</span>
+                            </button>
+                            <button onclick="ImageModule.grayscale()" class="flex flex-col items-center justify-center bg-white dark:bg-gray-700 border border-gray-200 dark:border-gray-600 hover:border-gray-400 hover:bg-gray-100 dark:hover:bg-gray-600 p-4 rounded-xl transition">
+                                <i class="fas fa-adjust text-xl text-gray-500 mb-2"></i><span class="text-sm font-medium">Grayscale</span>
+                            </button>
+                            <button onclick="ImageModule.compress()" class="flex flex-col items-center justify-center bg-white dark:bg-gray-700 border border-gray-200 dark:border-gray-600 hover:border-orange-400 hover:bg-orange-50 dark:hover:bg-gray-600 p-4 rounded-xl transition">
+                                <i class="fas fa-compress text-xl text-orange-500 mb-2"></i><span class="text-sm font-medium">Compress</span>
+                            </button>
+                            <button onclick="ImageModule.removeBackground()" class="flex flex-col items-center justify-center bg-gradient-to-br from-purple-500 to-pink-500 hover:from-purple-600 hover:to-pink-600 text-white shadow-md p-4 rounded-xl transition col-span-2 sm:col-span-1 border-none">
+                                <i class="fas fa-magic text-xl mb-2" id="bgBtnIcon"></i><span class="text-sm font-medium" id="bgBtnText">Remove BG</span>
+                            </button>
+                        </div>
+
+                        <div class="mt-6 bg-gray-50 dark:bg-gray-700 p-5 rounded-xl border dark:border-gray-600 flex flex-col sm:flex-row items-center gap-4">
+                            <button onclick="ImageModule.download()" class="w-full bg-blue-600 hover:bg-blue-700 text-white px-6 py-2.5 rounded-lg font-medium transition shadow-md"><i class="fas fa-download mr-2"></i> Download Result</button>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- TAB 2: TEXT & JSON -->
+            <section id="tab-text" class="tab-content w-full max-w-5xl mx-auto hidden grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div class="bg-white dark:bg-gray-800 p-6 rounded-2xl shadow-sm border border-gray-100 dark:border-gray-700">
+                    <h2 class="text-xl font-bold mb-4 flex items-center"><i class="fas fa-font text-green-500 mr-2"></i> Text Tools</h2>
+                    <textarea id="textInput" class="w-full h-48 p-4 border border-gray-200 rounded-xl dark:bg-gray-900 dark:border-gray-700 focus:ring-2 focus:ring-green-400 outline-none resize-none mb-2" placeholder="Type or paste text here..."></textarea>
+                    
+                    <div class="grid grid-cols-2 gap-3 mb-4">
+                        <button onclick="TextModule.uppercase()" class="bg-gray-50 border hover:bg-gray-100 dark:bg-gray-700 dark:border-gray-600 py-2 rounded-lg text-sm font-medium transition">UPPERCASE</button>
+                        <button onclick="TextModule.lowercase()" class="bg-gray-50 border hover:bg-gray-100 dark:bg-gray-700 dark:border-gray-600 py-2 rounded-lg text-sm font-medium transition">lowercase</button>
+                        <button onclick="TextModule.removeSpaces()" class="bg-gray-50 border hover:bg-gray-100 dark:bg-gray-700 dark:border-gray-600 py-2 rounded-lg text-sm font-medium transition col-span-2">Remove Extra Spaces</button>
+                    </div>
+                </div>
+
+                <div class="bg-white dark:bg-gray-800 p-6 rounded-2xl shadow-sm border border-gray-100 dark:border-gray-700">
+                    <h2 class="text-xl font-bold mb-4 flex items-center"><i class="fas fa-code text-yellow-500 mr-2"></i> JSON Formatter</h2>
+                    <textarea id="jsonInput" class="w-full h-48 p-4 border border-gray-200 rounded-xl dark:bg-gray-900 dark:border-gray-700 focus:ring-2 focus:ring-yellow-400 outline-none font-mono text-sm resize-none mb-3" placeholder='{"paste": "json data here"}'></textarea>
+                    <div class="flex gap-3 mt-auto">
+                        <button onclick="JsonModule.format()" class="flex-1 bg-yellow-500 hover:bg-yellow-600 text-white py-3 rounded-xl font-medium shadow-sm"><i class="fas fa-align-left mr-2"></i> Beautify JSON</button>
+                        <button onclick="JsonModule.minify()" class="flex-1 bg-gray-800 hover:bg-black text-white py-3 rounded-xl font-medium shadow-sm"><i class="fas fa-compress-alt mr-2"></i> Minify</button>
+                    </div>
+                </div>
+            </section>
+
+            <!-- TAB 3: DATA & UTILITIES -->
+            <section id="tab-data" class="tab-content w-full max-w-5xl mx-auto hidden grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div class="bg-white dark:bg-gray-800 p-6 rounded-2xl shadow-sm border border-gray-100 dark:border-gray-700">
+                    <h2 class="text-xl font-bold mb-4 flex items-center"><i class="fas fa-table text-indigo-500 mr-2"></i> CSV Visualizer</h2>
+                    <textarea id="csvInput" class="w-full h-32 p-4 border border-gray-200 rounded-xl dark:bg-gray-900 dark:border-gray-700 focus:ring-2 focus:ring-indigo-400 outline-none font-mono text-sm resize-none mb-4" placeholder="Name,Age\nAlice,30"></textarea>
+                    <button onclick="CsvModule.renderTable()" class="w-full bg-indigo-500 text-white py-3 rounded-xl font-medium shadow-sm mb-4">Generate Table</button>
+                    <div id="tableContainer" class="overflow-x-auto hidden max-h-48 border border-gray-200 dark:border-gray-700 rounded-xl"><table id="csvTable" class="w-full text-sm text-left"></table></div>
+                </div>
+
+                <div class="bg-white dark:bg-gray-800 p-6 rounded-2xl shadow-sm border border-gray-100 dark:border-gray-700 flex flex-col justify-center text-center">
+                    <h2 class="text-xl font-bold mb-6">Secure Password Gen</h2>
+                    <input type="text" id="passOutput" readonly class="w-full p-4 border rounded-xl font-mono text-xl text-center mb-4 dark:bg-gray-900 dark:border-gray-700">
+                    <button onclick="PasswordModule.generate()" class="w-full bg-red-500 text-white py-4 rounded-xl font-bold shadow-md">Generate Password</button>
+                </div>
+            </section>
+
+            <!-- TAB 4: FILE CONVERTERS -->
+            <section id="tab-docs" class="tab-content w-full max-w-5xl mx-auto hidden grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div class="bg-white dark:bg-gray-800 p-6 rounded-2xl shadow-sm border border-gray-100 dark:border-gray-700 flex flex-col items-center text-center">
+                    <h2 class="text-xl font-bold mb-2">Excel to CSV</h2>
+                    <input type="file" id="excelInput" accept=".xlsx, .xls" class="mb-4" onchange="DocModule.handleExcel(event)">
+                    <button id="downloadCsvBtn" disabled onclick="DocModule.downloadCSV()" class="w-full bg-emerald-500 disabled:opacity-50 text-white py-3 rounded-xl font-medium">Download CSV</button>
+                </div>
+
+                <div class="bg-white dark:bg-gray-800 p-6 rounded-2xl shadow-sm border border-gray-100 dark:border-gray-700 flex flex-col items-center text-center">
+                    <h2 class="text-xl font-bold mb-2">Office to PDF</h2>
+                    <input type="file" id="docInput" accept=".docx, .pptx" class="mb-4" onchange="DocModule.handleDoc(event)">
+                    <button id="convertPdfBtn" disabled onclick="DocModule.convertToPdf()" class="w-full bg-rose-500 disabled:opacity-50 text-white py-3 rounded-xl font-medium"><i id="pdfBtnIcon" class="fas fa-sync-alt"></i> <span id="pdfBtnText">Convert</span></button>
+                </div>
+            </section>
+
+            <!-- TAB 5: HISTORY -->
+            <section id="tab-history" class="tab-content w-full max-w-3xl mx-auto hidden">
+                <div class="bg-white dark:bg-gray-800 p-8 rounded-2xl shadow-sm border border-gray-100 dark:border-gray-700">
+                    <h2 class="text-xl font-bold mb-6">Activity Log</h2>
+                    <ul id="historyList" class="space-y-4 text-sm"></ul>
+                </div>
+            </section>
+        </div>
+
+    </main>
+
+    <!-- === MODULAR JAVASCRIPT === -->
+    <script>
+        const API_BASE = 'http://localhost:3000'; 
+
+        // --- AI AGENT ORCHESTRATION MODULE ---
+        const AiModule = {
+            currentAttachedFile: null,
+
+            handleFileSelect(event) {
+                const file = event.target.files[0];
+                if (!file) return;
+                this.currentAttachedFile = file;
+                document.getElementById('ai-filename').textContent = file.name;
+                
+                const thumbnailEl = document.getElementById('ai-file-thumbnail');
+                const iconEl = document.getElementById('ai-file-icon');
+                
+                // Show thumbnail if it's an image, otherwise show file icon
+                if (file.type.startsWith('image/')) {
+                    thumbnailEl.src = URL.createObjectURL(file);
+                    thumbnailEl.classList.remove('hidden');
+                    iconEl.classList.add('hidden');
+                } else {
+                    thumbnailEl.classList.add('hidden');
+                    thumbnailEl.src = '';
+                    iconEl.classList.remove('hidden');
+                }
+                
+                document.getElementById('ai-file-preview').classList.remove('hidden');
+                document.getElementById('ai-input').focus();
+            },
+
+            clearFile() {
+                this.currentAttachedFile = null;
+                document.getElementById('ai-file-upload').value = '';
+                document.getElementById('ai-file-preview').classList.add('hidden');
+                document.getElementById('ai-file-thumbnail').src = '';
+            },
+
+            appendMessage(content, isUser = false, isHtml = false) {
+                const windowEl = document.getElementById('chat-window');
+                const displayContent = isHtml ? content : content.replace(/</g, "&lt;").replace(/>/g, "&gt;");
+                
+                const html = isUser 
+                    ? `<div class="flex gap-3 justify-end"><div class="bg-blue-600 text-white p-4 rounded-2xl rounded-tr-none shadow-sm max-w-[80%] text-sm">${displayContent}</div></div>`
+                    : `<div class="flex gap-3"><div class="w-8 h-8 rounded-full bg-blue-100 flex items-center justify-center shrink-0"><i class="fas fa-robot text-blue-600 text-sm"></i></div><div class="bg-white dark:bg-gray-700 p-4 rounded-2xl rounded-tl-none shadow-sm border border-gray-100 dark:border-gray-600 max-w-[85%] text-sm">${displayContent}</div></div>`;
+                windowEl.insertAdjacentHTML('beforeend', html);
+                windowEl.scrollTop = windowEl.scrollHeight;
+            },
+
+            async sendMessage() {
+                const inputEl = document.getElementById('ai-input');
+                let rawPrompt = inputEl.value.trim();
+                let promptToSendToBackend = rawPrompt;
+
+                // FIX: If the user attached a file but hit send without typing anything, 
+                // we automatically generate a prompt so it doesn't get ignored!
+                if (!rawPrompt && this.currentAttachedFile) {
+                    promptToSendToBackend = `I have uploaded a file named "${this.currentAttachedFile.name}". What can you do with it?`;
+                } else if (!rawPrompt) {
+                    return; // Do nothing if there's no file AND no text
+                }
+
+                // Construct visual message for chat history (with thumbnail support)
+                let visualContent = '';
+                if (this.currentAttachedFile) {
+                    let thumbHtml = '<i class="fas fa-file-alt text-2xl text-blue-200"></i>';
+                    if (this.currentAttachedFile.type.startsWith('image/')) {
+                        const objUrl = URL.createObjectURL(this.currentAttachedFile);
+                        thumbHtml = `<img src="${objUrl}" class="w-10 h-10 object-cover rounded border border-blue-500/50">`;
+                    }
+                    visualContent += `
+                        <div class="flex items-center gap-3 bg-blue-700 p-2 rounded-lg mb-2 shadow-inner">
+                            ${thumbHtml}
+                            <span class="text-xs font-semibold truncate max-w-[150px]">${this.currentAttachedFile.name}</span>
+                        </div>`;
+                }
+                
+                if (rawPrompt) {
+                    visualContent += `<div>${rawPrompt.replace(/</g, "&lt;").replace(/>/g, "&gt;")}</div>`;
+                }
+
+                this.appendMessage(visualContent, true, true);
+                inputEl.value = '';
+                
+                // Show loading indicator
+                const windowEl = document.getElementById('chat-window');
+                const loadId = 'loading-' + Date.now();
+                windowEl.insertAdjacentHTML('beforeend', `<div id="${loadId}" class="flex gap-3"><div class="w-8 h-8 rounded-full bg-blue-100 flex items-center justify-center shrink-0"><i class="fas fa-spinner fa-spin text-blue-600 text-sm"></i></div><div class="bg-white dark:bg-gray-700 p-4 rounded-2xl rounded-tl-none shadow-sm text-gray-400 text-sm italic">Thinking...</div></div>`);
+                windowEl.scrollTop = windowEl.scrollHeight;
+
+                try {
+                    // FIX: Pass the filename to the backend so Gemini knows what's attached!
+                    const response = await fetch(`${API_BASE}/api/chat`, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ 
+                            prompt: promptToSendToBackend, 
+                            fileName: this.currentAttachedFile ? this.currentAttachedFile.name : null 
+                        })
+                    });
+
+                    const data = await response.json();
+                    
+                    // Remove loading indicator
+                    document.getElementById(loadId).remove();
+                    
+                    // Show AI Reply
+                    this.appendMessage(data.reply, false);
+
+                    // Execute the mapped action programmatically!
+                    if (data.action !== 'NONE') {
+                        setTimeout(() => this.executeAction(data.action, data.extractedText), 800);
+                    }
+
+                } catch (error) {
+                    document.getElementById(loadId).remove();
+                    this.appendMessage("Error communicating with AI backend. Is the Node server running?", false);
+                }
+            },
+
+            executeAction(action, extractedText) {
+                // Route the AI command to the existing manual UI functions!
+                switch(action) {
+                    case 'REMOVE_BG':
+                        Core.setMode('manual'); Core.switchTab('image');
+                        ImageModule.handleFile(this.currentAttachedFile);
+                        setTimeout(() => ImageModule.removeBackground(), 500); 
+                        this.clearFile();
+                        break;
+                    case 'IMAGE_RESIZE':
+                        Core.setMode('manual'); Core.switchTab('image');
+                        ImageModule.handleFile(this.currentAttachedFile);
+                        setTimeout(() => ImageModule.resize(), 500);
+                        this.clearFile();
+                        break;
+                    case 'IMAGE_GRAYSCALE':
+                        Core.setMode('manual'); Core.switchTab('image');
+                        ImageModule.handleFile(this.currentAttachedFile);
+                        setTimeout(() => ImageModule.grayscale(), 500);
+                        this.clearFile();
+                        break;
+                    case 'IMAGE_COMPRESS':
+                        Core.setMode('manual'); Core.switchTab('image');
+                        ImageModule.handleFile(this.currentAttachedFile);
+                        setTimeout(() => ImageModule.compress(), 500);
+                        this.clearFile();
+                        break;
+                    case 'DOC_PDF':
+                        Core.setMode('manual'); Core.switchTab('docs');
+                        DocModule.handleDoc({ target: { files: [this.currentAttachedFile] } });
+                        DocModule.convertToPdf();
+                        this.clearFile();
+                        break;
+                    case 'EXCEL_CSV':
+                        Core.setMode('manual'); Core.switchTab('docs');
+                        DocModule.handleExcel({ target: { files: [this.currentAttachedFile] } });
+                        setTimeout(() => DocModule.downloadCSV(), 1000);
+                        this.clearFile();
+                        break;
+                    case 'GENERATE_PASSWORD':
+                        Core.setMode('manual'); Core.switchTab('data');
+                        PasswordModule.generate();
+                        break;
+                    case 'TEXT_UPPERCASE':
+                        Core.setMode('manual'); Core.switchTab('text');
+                        if(extractedText) document.getElementById('textInput').value = extractedText;
+                        TextModule.uppercase();
+                        break;
+                    case 'TEXT_LOWERCASE':
+                        Core.setMode('manual'); Core.switchTab('text');
+                        if(extractedText) document.getElementById('textInput').value = extractedText;
+                        TextModule.lowercase();
+                        break;
+                    case 'TEXT_REMOVE_SPACES':
+                        Core.setMode('manual'); Core.switchTab('text');
+                        if(extractedText) document.getElementById('textInput').value = extractedText;
+                        TextModule.removeSpaces();
+                        break;
+                    case 'JSON_FORMAT':
+                        Core.setMode('manual'); Core.switchTab('text');
+                        if(extractedText) document.getElementById('jsonInput').value = extractedText;
+                        JsonModule.format();
+                        break;
+                    case 'JSON_MINIFY':
+                        Core.setMode('manual'); Core.switchTab('text');
+                        if(extractedText) document.getElementById('jsonInput').value = extractedText;
+                        JsonModule.minify();
+                        break;
+                    case 'CSV_TABLE':
+                        Core.setMode('manual'); Core.switchTab('data');
+                        if(extractedText) document.getElementById('csvInput').value = extractedText;
+                        CsvModule.renderTable();
+                        break;
+                }
+            }
+        };
+
+        // --- Core/State Module ---
+        const Core = {
+            init() {
+                this.setupDarkMode();
+                HistoryModule.render();
+                TextModule.initListeners();
+                ImageModule.init();
+            },
+            setMode(mode) {
+                const btnManual = document.getElementById('mode-manual-btn');
+                const btnAi = document.getElementById('mode-ai-btn');
+                const manualWorkspace = document.getElementById('manual-workspace');
+                const manualNav = document.getElementById('manual-tabs-nav');
+                const aiWorkspace = document.getElementById('tab-ai');
+
+                if (mode === 'ai') {
+                    // Switch UI to AI Chat
+                    btnAi.classList.replace('bg-transparent', 'bg-white');
+                    btnAi.classList.replace('text-gray-500', 'text-blue-600');
+                    btnAi.classList.add('shadow', 'dark:bg-gray-800', 'dark:text-blue-400');
+                    
+                    btnManual.classList.replace('bg-white', 'bg-transparent');
+                    btnManual.classList.replace('text-blue-600', 'text-gray-500');
+                    btnManual.classList.remove('shadow', 'dark:bg-gray-800', 'dark:text-blue-400');
+                    
+                    manualWorkspace.classList.replace('block', 'hidden');
+                    manualNav.classList.add('hidden');
+                    aiWorkspace.classList.replace('hidden', 'flex');
+                } else {
+                    // Switch UI back to Manual Tabs
+                    btnManual.classList.replace('bg-transparent', 'bg-white');
+                    btnManual.classList.replace('text-gray-500', 'text-blue-600');
+                    btnManual.classList.add('shadow', 'dark:bg-gray-800', 'dark:text-blue-400');
+                    
+                    btnAi.classList.replace('bg-white', 'bg-transparent');
+                    btnAi.classList.replace('text-blue-600', 'text-gray-500');
+                    btnAi.classList.remove('shadow', 'dark:bg-gray-800', 'dark:text-blue-400');
+                    
+                    aiWorkspace.classList.replace('flex', 'hidden');
+                    manualWorkspace.classList.replace('hidden', 'block');
+                    manualNav.classList.remove('hidden');
+                }
+            },
+            switchTab(tabId) {
+                document.querySelectorAll('.tab-content').forEach(tab => tab.classList.add('hidden'));
+                document.querySelectorAll('.tab-btn').forEach(btn => {
+                    btn.classList.remove('active', 'border-blue-500', 'text-blue-600', 'dark:text-blue-400');
+                    btn.classList.add('border-transparent');
+                });
+                document.getElementById(`tab-${tabId}`).classList.remove('hidden');
+                document.getElementById(`btn-tab-${tabId}`).classList.remove('border-transparent');
+                document.getElementById(`btn-tab-${tabId}`).classList.add('active', 'border-blue-500', 'text-blue-600', 'dark:text-blue-400');
+            },
+            setupDarkMode() {
+                const btn = document.getElementById('darkModeToggle');
+                const icon = document.getElementById('themeIcon');
+                if (localStorage.theme === 'dark' || (!('theme' in localStorage) && window.matchMedia('(prefers-color-scheme: dark)').matches)) {
+                    document.documentElement.classList.add('dark');
+                    icon.classList.replace('fa-moon', 'fa-sun');
+                }
+                btn.addEventListener('click', () => {
+                    document.documentElement.classList.toggle('dark');
+                    if (document.documentElement.classList.contains('dark')) {
+                        localStorage.theme = 'dark'; icon.classList.replace('fa-moon', 'fa-sun');
+                    } else {
+                        localStorage.theme = 'light'; icon.classList.replace('fa-sun', 'fa-moon');
+                    }
+                });
+            },
+            formatBytes(bytes) {
+                if(bytes === 0) return '0 Bytes';
+                const k = 1024, sizes = ['Bytes', 'KB', 'MB', 'GB'], i = Math.floor(Math.log(bytes) / Math.log(k));
+                return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
+            }
+        };
+
+        // --- Manual Logic Modules ---
+        const HistoryModule = {
+            log(action) {
+                const history = JSON.parse(localStorage.getItem('toolkitHistory') || '[]');
+                history.unshift({ action, time: new Date().toLocaleTimeString() });
+                if (history.length > 30) history.pop();
+                localStorage.setItem('toolkitHistory', JSON.stringify(history));
+                this.render();
+            },
+            render() {
+                const list = document.getElementById('historyList');
+                const history = JSON.parse(localStorage.getItem('toolkitHistory') || '[]');
+                list.innerHTML = history.length === 0 ? '<li class="text-gray-400 py-4 italic">No recent activity.</li>' : history.map(h => `<li><div class="bg-gray-50 dark:bg-gray-700 p-3 rounded-lg flex justify-between shadow-sm border border-gray-100 dark:border-gray-600"><span>${h.action}</span><span class="text-gray-400 text-xs">${h.time}</span></div></li>`).join('');
+            },
+            clear() { localStorage.removeItem('toolkitHistory'); this.render(); }
+        };
+
+        const DocModule = {
+            excelFile: null, docFile: null, csvResult: null,
+            handleExcel(event) {
+                const file = event.target.files[0]; if (!file) return;
+                this.excelFile = file;
+                const btn = document.getElementById('downloadCsvBtn');
+                btn.disabled = true; btn.textContent = 'Processing...';
+                const reader = new FileReader();
+                reader.onload = (e) => {
+                    const data = new Uint8Array(e.target.result);
+                    const workbook = XLSX.read(data, {type: 'array'});
+                    this.csvResult = XLSX.utils.sheet_to_csv(workbook.Sheets[workbook.SheetNames[0]]);
+                    btn.disabled = false; btn.textContent = 'Download CSV';
+                    HistoryModule.log(`Parsed Excel: ${file.name}`);
+                };
+                reader.readAsArrayBuffer(file);
+            },
+            downloadCSV() {
+                const blob = new Blob([this.csvResult], { type: 'text/csv' });
+                const link = document.createElement("a");
+                link.href = URL.createObjectURL(blob);
+                link.download = (this.excelFile.name.split('.')[0] || "export") + ".csv";
+                link.click();
+                HistoryModule.log('Downloaded CSV');
+            },
+            handleDoc(event) {
+                const file = event.target.files[0]; if (!file) return;
+                this.docFile = file; document.getElementById('convertPdfBtn').disabled = false;
+            },
+            async convertToPdf() {
+                if (!this.docFile) return;
+                const btnIcon = document.getElementById('pdfBtnIcon');
+                const btnText = document.getElementById('pdfBtnText');
+                btnIcon.className = "fas fa-spinner fa-spin mr-2"; btnText.textContent = "Converting...";
+                const formData = new FormData(); formData.append('file', this.docFile);
+                try {
+                    const response = await fetch(`${API_BASE}/convert-pdf`, { method: 'POST', body: formData });
+                    if (!response.ok) throw new Error('API Error');
+                    const link = document.createElement('a');
+                    link.href = URL.createObjectURL(await response.blob());
+                    link.download = this.docFile.name.split('.')[0] + ".pdf"; link.click();
+                    HistoryModule.log(`Converted PDF: ${this.docFile.name}`);
+                } catch (error) { alert("PDF Conversion Failed."); } 
+                finally { btnIcon.className = "fas fa-sync-alt mr-2"; btnText.textContent = "Convert"; }
+            }
+        };
+
+        const ImageModule = {
+            canvas: document.getElementById('imageCanvas'), ctx: document.getElementById('imageCanvas').getContext('2d'),
+            currentImage: null, originalFile: null, mimeType: 'image/png',
+            init() {
+                const dropZone = document.getElementById('dropZone'); const input = document.getElementById('imageInput');
+                ['dragenter', 'dragover', 'dragleave', 'drop'].forEach(e => dropZone.addEventListener(e, ev => { ev.preventDefault(); ev.stopPropagation(); }));
+                dropZone.addEventListener('drop', e => this.handleFile(e.dataTransfer.files[0]));
+                input.addEventListener('change', e => this.handleFile(e.target.files[0]));
+            },
+            handleFile(file) {
+                if (!file || !file.type.startsWith('image/')) return;
+                this.originalFile = file; this.mimeType = file.type;
+                const reader = new FileReader();
+                reader.onload = (e) => {
+                    const img = new Image();
+                    img.onload = () => {
+                        this.currentImage = img; this.canvas.width = img.width; this.canvas.height = img.height;
+                        this.ctx.drawImage(img, 0, 0); document.getElementById('imageWorkspace').classList.remove('hidden');
+                        HistoryModule.log(`Uploaded: ${file.name}`);
+                    };
+                    img.src = e.target.result;
+                };
+                reader.readAsDataURL(file);
+            },
+            resize() {
+                if(!this.currentImage) return;
+                const tCanvas = document.createElement('canvas'); tCanvas.width = this.canvas.width * 0.5; tCanvas.height = this.canvas.height * 0.5;
+                tCanvas.getContext('2d').drawImage(this.canvas, 0, 0, tCanvas.width, tCanvas.height);
+                this.currentImage.src = tCanvas.toDataURL(); this.canvas.width = tCanvas.width; this.canvas.height = tCanvas.height;
+                this.ctx.drawImage(tCanvas, 0, 0); HistoryModule.log('Resized Image');
+            },
+            grayscale() {
+                if(!this.currentImage) return;
+                const imgData = this.ctx.getImageData(0, 0, this.canvas.width, this.canvas.height); const d = imgData.data;
+                for (let i = 0; i < d.length; i += 4) { const avg = (d[i] + d[i + 1] + d[i + 2]) / 3; d[i] = d[i+1] = d[i+2] = avg; }
+                this.ctx.putImageData(imgData, 0, 0); HistoryModule.log('Grayscale Image');
+            },
+            compress() {
+                if(!this.currentImage) return;
+                this.mimeType = 'image/jpeg';
+                const img = new Image(); img.onload = () => { this.ctx.drawImage(img, 0, 0); this.currentImage = img; };
+                img.src = this.canvas.toDataURL(this.mimeType, 0.3); HistoryModule.log('Compressed Image');
+            },
+            async removeBackground() {
+                if (!this.originalFile) return;
+                const btnIcon = document.getElementById('bgBtnIcon'); const btnText = document.getElementById('bgBtnText');
+                btnIcon.className = "fas fa-spinner fa-spin text-xl mb-2"; btnText.textContent = "Processing...";
+                const formData = new FormData();
+                this.canvas.toBlob(async (blob) => {
+                    formData.append('image_file', blob, 'image.png');
+                    try {
+                        const response = await fetch(`${API_BASE}/remove-bg`, { method: 'POST', body: formData });
+                        const img = new Image(); img.onload = () => { this.currentImage = img; this.canvas.width = img.width; this.canvas.height = img.height; this.ctx.drawImage(img, 0, 0); this.mimeType = 'image/png'; HistoryModule.log('Removed Background'); };
+                        img.src = URL.createObjectURL(await response.blob());
+                    } catch (err) { alert("BG Removal Failed."); } 
+                    finally { btnIcon.className = "fas fa-magic text-xl mb-2"; btnText.textContent = "Remove BG"; }
+                }, 'image/png');
+            },
+            download() {
+                if(!this.currentImage) return;
+                const link = document.createElement('a'); link.download = `export_${Date.now()}.${this.mimeType === 'image/jpeg' ? 'jpg' : 'png'}`;
+                link.href = this.canvas.toDataURL(this.mimeType); link.click(); HistoryModule.log('Downloaded Image');
+            }
+        };
+
+        const TextModule = {
+            el: document.getElementById('textInput'),
+            initListeners() { /* Listeners here if needed */ },
+            uppercase() { this.el.value = this.el.value.toUpperCase(); HistoryModule.log('Text Uppercase'); },
+            lowercase() { this.el.value = this.el.value.toLowerCase(); HistoryModule.log('Text Lowercase'); },
+            removeSpaces() { this.el.value = this.el.value.replace(/\s+/g, ' ').trim(); HistoryModule.log('Removed Spaces'); }
+        };
+
+        const JsonModule = {
+            format() { try { const e=document.getElementById('jsonInput'); e.value = JSON.stringify(JSON.parse(e.value), null, 4); HistoryModule.log('JSON Formatted'); }catch(err){alert('Invalid JSON');} },
+            minify() { try { const e=document.getElementById('jsonInput'); e.value = JSON.stringify(JSON.parse(e.value)); HistoryModule.log('JSON Minified'); }catch(err){alert('Invalid JSON');} }
+        };
+
+        const CsvModule = {
+            renderTable() {
+                const text = document.getElementById('csvInput').value.trim(); if(!text) return;
+                const rows = text.split('\n'); const table = document.getElementById('csvTable'); table.innerHTML = '';
+                rows.forEach((row, index) => {
+                    const tr = document.createElement('tr'); tr.className = index === 0 ? "font-bold bg-gray-100 dark:bg-gray-700" : "border-b dark:border-gray-800";
+                    row.split(',').forEach(col => { const cell = document.createElement(index===0?'th':'td'); cell.className="px-4 py-2"; cell.textContent = col; tr.appendChild(cell); });
+                    table.appendChild(tr);
+                });
+                document.getElementById('tableContainer').classList.remove('hidden'); HistoryModule.log('Generated Table');
+            }
+        };
+
+        const PasswordModule = {
+            generate() {
+                const chars = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789!@#$%^&*()_+"; let pass = "";
+                for (let i = 0; i < 16; i++) pass += chars.charAt(Math.floor(Math.random() * chars.length));
+                document.getElementById('passOutput').value = pass; HistoryModule.log('Generated Password');
+            }
+        };
+
+        document.addEventListener('DOMContentLoaded', () => Core.init());
+    </script>
+</body>
+</html>
