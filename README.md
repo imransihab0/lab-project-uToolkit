@@ -92,11 +92,13 @@ Just open the index.html file in any browser and you are good to go!
 ## 🔁 How the AI Fallback Works
 To prevent 429 Too Many Requests errors from interrupting the user experience, our Node.js server implements an automatic fallback loop. When a user sends a prompt, the system tries models in this exact priority:
 
-* **gemma-3n-e2b-it (Fastest, 30 RPM / 14.4k RPD)
-* **gemma-3-4b-it
-* **gemini-3.1-flash-lite-preview
-* **gemini-2.5-flash-lite
-* **gemini-2.5-flash
+```code
+1. gemma-3n-e2b-it (Fastest, 30 RPM / 14.4k RPD)
+2. gemma-3-4b-it
+3. gemini-3.1-flash-lite-preview
+4. gemini-2.5-flash-lite
+5. gemini-2.5-flash
+```
 
 If a model's rate limit is exhausted, the server catches the error and instantly routes the prompt to the next available AI brain without the user ever noticing!
 
